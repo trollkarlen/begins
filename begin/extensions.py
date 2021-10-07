@@ -62,6 +62,13 @@ class Logging(Extension):
 
     section = 'logging'
 
+    def __init__(self, func, stream_file=sys.stderr, name=None, logfmt=None, stream_logfmt=None, file_logfmt=None, **kwargs):
+        Extension.__init__(self, func)
+        self._stream_file = stream_file
+        self._logger_name = name
+        self._stream_logfmt = stream_logfmt if stream_logfmt else logfmt
+        self._file_logfmt = file_logfmt if file_logfmt else logfmt
+
     def add_arguments(self, parser, defaults):
         "Add command line arguments for configuring the logging module"
         exclusive  = parser.add_mutually_exclusive_group()
@@ -98,13 +105,13 @@ class Logging(Extension):
         elif opts.quiet:
             level = logging.WARNING
         # logger
-        logger = logging.getLogger()
+        logger = logging.getLogger(self._logger_name)
         for handler in logger.handlers:
             logger.removeHandler(handler)
         logger.setLevel(level)
         # handler
         if opts.logfile is None:
-            handler = logging.StreamHandler(sys.stdout)
+            handler = logging.StreamHandler(self._stream_file)
         elif platform.system() != 'Windows':
             handler = logging.handlers.WatchedFileHandler(opts.logfile)
         else:
@@ -114,13 +121,27 @@ class Logging(Extension):
         fmt = opts.logfmt
         if fmt is None:
             if opts.logfile is None:
-                fmt = '%(message)s'
+                if self._stream_logfmt:
+                    fmt = self._stream_logfmt
+                else:
+                    fmt = '%(message)s'
             else:
-                fmt = '[%(asctime)s] [%(levelname)s] [%(pathname)s:%(lineno)s] %(message)s'
+                if self._file_logfmt:
+                    fmt = self._file_logfmt
+                else:
+                    fmt = '[%(asctime)s] [%(levelname)s] [%(pathname)s:%(lineno)s] %(message)s'
         formatter = logging.Formatter(fmt)
         handler.setFormatter(formatter)
 
 
-def logger(func):
+def logger(func=None, **kwargs):
     "Add command line extension for logging module"
+    def _start(func):
+        prog = Logging(func, **kwargs)
+        return prog
+
+    # logger() is a decorator factory
+    if func is None and len(kwargs) > 0:
+        return _start
+
     return Logging(func)
