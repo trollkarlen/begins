@@ -12,15 +12,19 @@ class TestBegins(unittest.TestCase):
         self.assertTrue(begin.__version__)
 
     def test_readme(self):
-        readme = os.path.join(os.path.dirname(__file__), "..", "README.rst")
+        # doctest.testfile never raises on failing examples - assert on the
+        # result so README regressions actually fail the suite.
+        readme = os.path.join(os.path.dirname(__file__), "..", "README.md")
         try:
             original = sys.argv
             sys.argv = [""]
-            doctest.testfile(readme, module_relative=False)
+            result = doctest.testfile(readme, module_relative=False)
         finally:
             sys.argv = original
             for collector in begin.subcommands.COLLECTORS.values():
                 collector.clear()
+        self.assertEqual(result.attempted, 13)
+        self.assertEqual(result.failed, 0)
 
 
 if __name__ == "__main__":
