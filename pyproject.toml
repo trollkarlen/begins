@@ -49,6 +49,11 @@ packages = ["begin"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --cov=begin --cov-report=term-missing --cov-fail-under=80"
+filterwarnings = [
+    # Expected on <= 3.12: the Tracebacks extension intentionally uses
+    # cgitb when the interpreter still has it (removed in 3.13).
+    "ignore:'cgitb' is deprecated:DeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["begin"]
