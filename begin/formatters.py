@@ -1,8 +1,11 @@
 "Help formatters for use with argparse"
+
+# pylint: disable=unused-argument  # mixin methods keep the parent argparse signature
+
 import argparse
 
 
-class RawDescription(object):
+class RawDescription:
     """Help message formatter which retains any formatting in descriptions.
 
     Based on argparse.RawDescriptionHelpFormatter from Python standard library
@@ -10,10 +13,10 @@ class RawDescription(object):
     """
 
     def _fill_text(self, text, width, indent):
-        return ''.join([indent + line for line in text.splitlines(True)])
+        return "".join([indent + line for line in text.splitlines(True)])
 
 
-class RawArguments(object):
+class RawArguments:
     """Help message formatter which retains formatting of all argument text.
 
     Based on argparse.RawTextHelpFormatter from Python standard library
@@ -24,7 +27,7 @@ class RawArguments(object):
         return text.splitlines()
 
 
-class ArgumentDefaults(object):
+class ArgumentDefaults:
     """Help message formatter which adds default values to argument help.
 
     Based on argparse.ArgumentDefaultsHelpFormatter from Python standard library
@@ -32,16 +35,15 @@ class ArgumentDefaults(object):
     """
 
     def _get_help_string(self, action):
-        help = action.help
-        if '%(default)' not in action.help:
-            if action.default is not argparse.SUPPRESS:
-                defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
-                if action.option_strings or action.nargs in defaulting_nargs:
-                    help += ' (default: %(default)s)'
-        return help
+        helptext = action.help
+        if "%(default)" not in action.help and action.default is not argparse.SUPPRESS:
+            defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+            if action.option_strings or action.nargs in defaulting_nargs:
+                helptext += " (default: %(default)s)"
+        return helptext
 
 
-class RemoveSubcommandsLine(object):
+class RemoveSubcommandsLine:
     """Removes line of subcommand names from help output.
 
     Based on Jeppe Ledet-Pederson's solution for hiding metavar in command
@@ -49,6 +51,7 @@ class RemoveSubcommandsLine(object):
     """
 
     def _format_action(self, action):
+        # mixin pattern: extend argparse internals
         parts = argparse.HelpFormatter._format_action(self, action)
         if action.nargs == argparse.PARSER:
             parts = "\n".join(parts.split("\n")[1:])
@@ -62,11 +65,10 @@ def compose(*mixins, **kwargs):
     with multiple inheritance against argparse.HelpFormatter to create a new
     help formatter class.
     """
-    if not set(['name']).issuperset(kwargs.keys()):
-        unknown = set(kwargs.keys())
-        unknown.discard(set(['name']))
-        msg = "compose() got an unexpected keyword argument '{0}'".format(unknown.pop())
+    if not {"name"}.issuperset(kwargs):
+        unknown = set(kwargs)
+        unknown.discard("name")
+        msg = f"compose() got an unexpected keyword argument '{unknown.pop()}'"
         raise TypeError(msg)
-    name = kwargs.get('name', 'CompositeHelpFormatter')
+    name = kwargs.get("name", "CompositeHelpFormatter")
     return type(name, tuple(mixins) + (argparse.HelpFormatter,), {})
-

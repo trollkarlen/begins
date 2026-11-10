@@ -1,13 +1,13 @@
 "Syntactic sugar for a programs 'main'."
-from __future__ import absolute_import, division, print_function
+
 import inspect
 import itertools
 import sys
 
-from begin.wrappable import Wrapping
 from begin import cmdline, context, convert
+from begin.wrappable import Wrapping
 
-__all__ = ['start']
+__all__ = ["start"]
 
 
 class Program(Wrapping):
@@ -18,16 +18,14 @@ class Program(Wrapping):
     and start the program appropriately.
     """
 
-    def __init__(self, func, auto_convert=False, cmd_delim=None,
-            sub_group=None, collector=None, **kwargs):
+    def __init__(self, func, auto_convert=False, cmd_delim=None, sub_group=None, collector=None, **kwargs):
         if auto_convert:
             func = convert(_automatic=True)(func)
         Wrapping.__init__(self, func)
         self._cmd_delim = cmd_delim
         self._group = sub_group
         self._collector = collector
-        self._parser = cmdline.create_parser(func, sub_group=self._group,
-                collector=self._collector, **kwargs)
+        self._parser = cmdline.create_parser(func, sub_group=self._group, collector=self._collector, **kwargs)
 
     def start(self, args=None):
         """Begin command line program
@@ -49,9 +47,8 @@ class Program(Wrapping):
         for count, opts in enumerate(options):
             context.opts_next = context.opts_next[1:]
             context.opts_current = opts
-            cmdline.apply_options(self.__wrapped__, opts,
-                    run_main=(count==0), sub_group=self._group,
-                    collector=self._collector)
+            cmdline.apply_options(self.__wrapped__, opts, run_main=(count == 0), sub_group=self._group, collector=self._collector)
+            # "opts_previous" is created dynamically by the context protocol
             context.opts_previous += (opts,)
         context.opts_current = None
         return context.last_return
@@ -108,9 +105,10 @@ def start(func=None, **kwargs):
 
     The environment variable 'PY_FIRST' will be used instead of 'FIRST'.
     """
+
     def _start(func):
         prog = Program(func, **kwargs)
-        if func.__module__ == '__main__':
+        if func.__module__ == "__main__":
             try:
                 prog.start()
             except KeyboardInterrupt:
@@ -121,15 +119,15 @@ def start(func=None, **kwargs):
     if func is None and len(kwargs) > 0:
         return _start
     # start() is a boolean function
-    elif func is None:
+    if func is None:
         stack = inspect.stack()
         if len(stack) < 1:
             return False
         frame = stack[1][0]
         if not inspect.isframe(frame):
             return False
-        return frame.f_globals['__name__'] == '__main__'
+        return frame.f_globals["__name__"] == "__main__"
     # not correctly used to decorate a function
-    elif not callable(func):
-        raise ValueError("Function '{0!r}' is not callable".format(func))
+    if not callable(func):
+        raise ValueError(f"Function '{func!r}' is not callable")
     return _start(func)

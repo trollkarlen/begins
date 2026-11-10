@@ -1,29 +1,22 @@
 "Type casting for function arguments"
-from __future__ import absolute_import, division, print_function
+
 import functools
 import sys
-
-try:
-    from inspect import signature
-except ImportError:
-    from funcsigs import signature
+from inspect import signature
 
 from begin import utils
 
-__all__ = ['convert']
+__all__ = ["convert"]
 
 
 CONVERTERS = {
-        int: lambda _: int,
-        float: lambda _: float,
-        bool: lambda _: utils.tobool,
-        tuple: lambda _: utils.tolist,
-        list: lambda _: utils.tolist,
-        type(sys.stdin): lambda src: functools.partial(utils.tofile, mode=src.mode),
+    int: lambda _: int,
+    float: lambda _: float,
+    bool: lambda _: utils.tobool,
+    tuple: lambda _: utils.tolist,
+    list: lambda _: utils.tolist,
+    type(sys.stdin): lambda src: functools.partial(utils.tofile, mode=src.mode),
 }
-
-if sys.version_info[0] < 3:
-    CONVERTERS[long] = lambda _: long
 
 
 def convert(_automatic=False, **mappings):
@@ -50,10 +43,11 @@ def convert(_automatic=False, **mappings):
     Helper functions for casting arguments can be found in the 'begin.utils'
     module.
     """
+
     def decorator(func):
         target = func
-        while hasattr(target, '__wrapped__'):
-            target = getattr(target, '__wrapped__')
+        while hasattr(target, "__wrapped__"):
+            target = target.__wrapped__
         sig = signature(target)
         if _automatic:
             for param in sig.parameters.values():
@@ -62,6 +56,7 @@ def convert(_automatic=False, **mappings):
                 converter = CONVERTERS.get(type(param.default))
                 if converter:
                     mappings[param.name] = converter(param.default)
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             args = list(args)
@@ -71,26 +66,23 @@ def convert(_automatic=False, **mappings):
                 if param.kind == param.POSITIONAL_ONLY:
                     args[pos] = mappings[param.name](args[pos])
                 if param.kind == param.POSITIONAL_OR_KEYWORD:
-                    if param.name in kwargs and \
-                            kwargs[param.name] is not param.default:
-                        kwargs[param.name] = mappings[param.name](
-                                kwargs[param.name])
-                    elif pos < len(args) and \
-                            args[pos] is not param.default:
+                    if param.name in kwargs and kwargs[param.name] is not param.default:
+                        kwargs[param.name] = mappings[param.name](kwargs[param.name])
+                    elif pos < len(args) and args[pos] is not param.default:
                         args[pos] = mappings[param.name](args[pos])
-                if param.kind == param.KEYWORD_ONLY and \
-                        kwargs[param.name] is not param.default:
-                    kwargs[param.name] = mappings[param.name](
-                            kwargs[param.name])
+                if param.kind == param.KEYWORD_ONLY and kwargs[param.name] is not param.default:
+                    kwargs[param.name] = mappings[param.name](kwargs[param.name])
                 if param.kind == param.VAR_POSITIONAL:
                     start = pos
                     for pos in range(start, len(args)):
                         args[pos] = mappings[param.name](args[pos])
                 if param.kind == param.VAR_KEYWORD:
-                    msg = 'Variable length keyword arguments not supported'
+                    msg = "Variable length keyword arguments not supported"
                     raise ValueError(msg)
             return func(*args, **kwargs)
+
         # do not skipping decorators when unwinding wrapping
         wrapper.__wrapped__ = func
         return wrapper
+
     return decorator

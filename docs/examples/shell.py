@@ -10,14 +10,17 @@ begin.subcommand(shutil.copytree)
 begin.subcommand(shutil.move)
 begin.subcommand(shutil.rmtree)
 
+
 # Patch in doc before the func is wrapped by begin.start
 def patch_doc(doc):
-   def decorate(func):
-       func.__doc__ = doc
-       return func
-   return decorate
+    def decorate(func):
+        func.__doc__ = doc
+        return func
+
+    return decorate
+
 
 @begin.start
 @patch_doc(shutil.__doc__)
 def main():
-   pass
+    pass

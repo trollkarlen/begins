@@ -66,3 +66,36 @@ Changelog
 * First version released
 * begin.start() decorator
 * begin.convert() decorator
+
+
+1.0.0 (2026-11-10)
+------------------
+
+First modern release of the trollkarlen fork.
+
+- Python 3.11+ only (3.10 and older are end-of-life). Supports 3.11-3.15.
+- Compatibility with current setuptools and Python 3.12/3.13/3.14/3.15:
+  - pkg_resources (removed from setuptools 81) replaced with
+    importlib.metadata in subcommand plugin loading.
+  - distutils.util.strtobool (removed with distutils in 3.12) replaced
+    with a local implementation in begin.utils.
+  - cgitb (removed in 3.13, PEP 594): the tracebacks extension now falls
+    back to a plain sys.excepthook writing text tracebacks to stderr and
+    --tbdir, matching cgitb's logdir behaviour.
+  - Restored begin.utils.tolist (referenced by convert's automatic
+    list/tuple casting and its tests, but lost from the module years
+    ago).
+- Packaging: setup.py/travis/tox replaced by pyproject.toml (hatchling
+  backend) usable with uv; version sourced from begin/version.py.
+- Quality gates wired into pyproject and CI (GitHub Actions):
+  ruff, black, pylint (10.00/10), mypy, pytest with coverage
+  (131 tests, 98% coverage, gate at 80%), matrix 3.11-3.15 on official
+  interpreters.
+- Test suite repaired for modern Python (cgitb/pkg_resources mocks,
+  unittest2/funcsigs/py2 fallbacks removed) and extended: cgitb-free
+  traceback fallback, utils edge cases. test_automatic_list restored to
+  its original 2013 intent (mutable list default) after a 2014 lint
+  "fix" had silently invalidated it.
+- All inline lint suppressions carry a reason; project-wide patterns
+  (argparse internals access, dynamically-created context attributes)
+  are disabled in the pylint config with justification.

@@ -1,22 +1,15 @@
 "Generate command line parsers and apply options using function signatures"
+
 import argparse
+import configparser
+import contextlib
 import os
 import sys
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
-try:
-    from inspect import signature
-except ImportError:
-    from funcsigs import signature
+from inspect import signature
 
 from begin import context, extensions, subcommands, utils
 
-__all__ = ['create_parser', 'populate_parser',
-           'apply_options', 'call_function']
+__all__ = ["create_parser", "populate_parser", "apply_options", "call_function"]
 
 
 NODEFAULT = object()
@@ -26,7 +19,7 @@ class CommandLineError(ValueError):
     """Error in command line processing"""
 
 
-class DefaultsManager(object):
+class DefaultsManager:
     """Manage default values for command line options
 
     Inspects environment variables and default argument values to determine the
@@ -35,12 +28,11 @@ class DefaultsManager(object):
 
     def __init__(self, env_prefix=None, config_file=None, config_section=None):
         self._use_env = env_prefix is not None
-        self._prefix = '' if not self._use_env else env_prefix
+        self._prefix = "" if not self._use_env else env_prefix
         self._parser = configparser.ConfigParser()
         self._section = config_section
         if config_file is not None:
-            self._parser.read([config_file,
-                os.path.join(os.path.expanduser('~'), config_file)])
+            self._parser.read([config_file, os.path.join(os.path.expanduser("~"), config_file)])
 
     def metavar(self, name):
         "Generate meta variable name for parameter"
@@ -58,15 +50,14 @@ class DefaultsManager(object):
         "Get default value from argument name"
         if len(self._parser.sections()) > 0:
             section = self._section if section is None else section
-            try:
+            with contextlib.suppress(configparser.NoSectionError, configparser.NoOptionError):
                 default = self._parser.get(section, name)
-            except (configparser.NoSectionError, configparser.NoOptionError):
-                pass
         if self._use_env:
             default = os.environ.get(self.metavar(name), default)
         return default
 
     def set_config_section(self, section):
+        "Set the configuration file section used for option defaults"
         self._section = section
 
 
@@ -79,7 +70,7 @@ def program_name(filename, func):
     fullpath = os.path.abspath(filename)
     basename, filename = os.path.split(fullpath)
     while len(basename) > 0:
-        if not filename.startswith('__'):
+        if not filename.startswith("__"):
             return filename
         basename, filename = os.path.split(basename)
     return func.__name__
@@ -90,34 +81,30 @@ def populate_flag(parser, param, defaults):
     default = defaults.from_param(param)
     if not isinstance(default, bool):
         default = utils.tobool(default)
-    help = ''
+    helptext = ""
     if param.annotation is not param.empty:
-        help = param.annotation + ' '
-    parser.add_argument('--' + param.name.replace('_', '-'),
-            action='store_true', default=default, dest=param.name,
-            help=(help + '(default: %(default)s)'if not default else ''))
-    parser.add_argument('--no-' + param.name.replace('_', '-'),
-            action='store_false', default=default, dest=param.name,
-            help=(help + '(default: %(default)s)' if default else ''))
+        helptext = param.annotation + " "
+    parser.add_argument("--" + param.name.replace("_", "-"), action="store_true", default=default, dest=param.name, help=(helptext + "(default: %(default)s)" if not default else ""))
+    parser.add_argument("--no-" + param.name.replace("_", "-"), action="store_false", default=default, dest=param.name, help=(helptext + "(default: %(default)s)" if default else ""))
 
 
 def populate_option(parser, param, defaults, short_args):
     """Add a regulre option to the parser"""
-    kwargs = {'default': defaults.from_param(param)}
-    kwargs['metavar'] = defaults.metavar(param.name)
+    kwargs = {"default": defaults.from_param(param)}
+    kwargs["metavar"] = defaults.metavar(param.name)
     if param.annotation is not param.empty:
-        kwargs['help'] = param.annotation
+        kwargs["help"] = param.annotation
     args = []
-    if kwargs['default'] is NODEFAULT:
+    if kwargs["default"] is NODEFAULT:
         args.append(param.name)
     else:
-        args.append('--' + param.name.replace('_', '-'))
+        args.append("--" + param.name.replace("_", "-"))
         if short_args:
-            args.append('-' + param.name[0])
-        if 'help' not in kwargs:
-            kwargs['help'] = '(default: %(default)s)'
+            args.append("-" + param.name[0])
+        if "help" not in kwargs:
+            kwargs["help"] = "(default: %(default)s)"
         else:
-            kwargs['help'] += ' (default: %(default)s)'
+            kwargs["help"] += " (default: %(default)s)"
     parser.add_argument(*args, **kwargs)
 
 
@@ -132,27 +119,25 @@ def populate_parser(parser, defaults, funcsig, short_args, lexical_order):
     if lexical_order:
         params = sorted(params, key=lambda p: p.name)
     for param in params:
-        if param.kind == param.POSITIONAL_OR_KEYWORD or \
-                param.kind == param.KEYWORD_ONLY or \
-                param.kind == param.POSITIONAL_ONLY:
+        if param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY, param.POSITIONAL_ONLY):
             if isinstance(param.default, bool):
                 populate_flag(parser, param, defaults)
             else:
                 populate_option(parser, param, defaults, short_args)
         elif param.kind == param.VAR_POSITIONAL:
-            kwargs = {'nargs': '*'}
+            kwargs = {"nargs": "*"}
             if param.annotation is not param.empty:
-                kwargs['help'] = param.annotation
+                kwargs["help"] = param.annotation
             parser.add_argument(param.name, **kwargs)
         elif param.kind == param.VAR_KEYWORD:
-            msg = 'Variable length keyword arguments not supported'
+            msg = "Variable length keyword arguments not supported"
             raise ValueError(msg)
     return parser
 
 
-def create_parser(func, env_prefix=None, config_file=None, config_section=None,
-        short_args=True, lexical_order=False, sub_group=None, plugins=None,
-        collector=None, formatter_class=argparse.HelpFormatter):
+def create_parser(
+    func, env_prefix=None, config_file=None, config_section=None, short_args=True, lexical_order=False, sub_group=None, plugins=None, collector=None, formatter_class=argparse.HelpFormatter
+):  # pylint: disable=unused-argument  # config_section kept for API compatibility
     """Create and OptionParser object from a function definition.
 
     Use the function's signature to generate an OptionParser object. Default
@@ -164,35 +149,24 @@ def create_parser(func, env_prefix=None, config_file=None, config_section=None,
     environment variables can be added using the env_prefix argument.
     """
     defaults = DefaultsManager(env_prefix, config_file, func.__name__)
-    parser = argparse.ArgumentParser(
-            prog=program_name(sys.argv[0], func),
-            argument_default=NODEFAULT,
-            conflict_handler='resolve',
-            description = func.__doc__,
-            formatter_class=formatter_class
-    )
+    parser = argparse.ArgumentParser(prog=program_name(sys.argv[0], func), argument_default=NODEFAULT, conflict_handler="resolve", description=func.__doc__, formatter_class=formatter_class)
     collector = collector if collector is not None else subcommands.COLLECTORS[sub_group]
     if plugins is not None:
         collector.load_plugins(plugins)
     if len(collector) > 0:
-        subparsers = parser.add_subparsers(title='Available subcommands',
-                dest='_subcommand')
+        subparsers = parser.add_subparsers(title="Available subcommands", dest="_subcommand")
         for subfunc in collector.commands():
-            funcsig  = signature(subfunc)
-            help = None
+            funcsig = signature(subfunc)
+            helptext = None
             if subfunc.__doc__ is not None:
-                help = subfunc.__doc__.splitlines()[0]
-            subparser = subparsers.add_parser(subfunc.__name__, help=help,
-                    conflict_handler='resolve', description=subfunc.__doc__,
-                    formatter_class=formatter_class)
+                helptext = subfunc.__doc__.splitlines()[0]
+            subparser = subparsers.add_parser(subfunc.__name__, help=helptext, conflict_handler="resolve", description=subfunc.__doc__, formatter_class=formatter_class)
             defaults.set_config_section(subfunc.__name__)
             populate_parser(subparser, defaults, funcsig, short_args, lexical_order)
-    have_extensions = False
-    while hasattr(func, '__wrapped__') and not hasattr(func, '__signature__'):
+    while hasattr(func, "__wrapped__") and not hasattr(func, "__signature__"):
         if isinstance(func, extensions.Extension):
             func.add_arguments(parser, defaults)
-            have_extensions = True
-        func = getattr(func, '__wrapped__')
+        func = func.__wrapped__
     funcsig = signature(func)
     populate_parser(parser, defaults, funcsig, short_args, lexical_order)
     return parser
@@ -207,31 +181,32 @@ def call_function(func, funcsig, opts):
     options object or to failure to use the command line arguments list will
     result in a CommandLineError being raised.
     """
+
     def getoption(opts, name, default=None):
         if not hasattr(opts, name):
-            msg = "Missing command line options '{0}'".format(name)
+            msg = f"Missing command line options '{name}'"
             raise CommandLineError(msg)
         value = getattr(opts, name)
         if value is NODEFAULT:
             if default is None:
-                msg = "'{0}' is a required option{1}".format(name, os.linesep)
+                msg = f"'{name}' is a required option{os.linesep}"
                 sys.stderr.write(msg)
                 sys.exit(1)
             else:
                 value = default
         return value
+
     pargs = []
     kwargs = {}
     for param in funcsig.parameters.values():
-        if param.kind == param.POSITIONAL_OR_KEYWORD or \
-                param.kind == param.POSITIONAL_ONLY:
+        if param.kind in (param.POSITIONAL_OR_KEYWORD, param.POSITIONAL_ONLY):
             pargs.append(getoption(opts, param.name))
         elif param.kind == param.VAR_POSITIONAL:
             pargs.extend(getoption(opts, param.name, []))
         elif param.kind == param.KEYWORD_ONLY:
             kwargs[param.name] = getoption(opts, param.name)
         elif param.kind == param.VAR_KEYWORD:
-            msg = 'Variable length keyword arguments not supported'
+            msg = "Variable length keyword arguments not supported"
             raise CommandLineError(msg)
     return func(*pargs, **kwargs)
 
@@ -244,15 +219,17 @@ def apply_options(func, opts, run_main=True, sub_group=None, collector=None):
     """
     ext = func
     collector = collector if collector is not None else subcommands.COLLECTORS[sub_group]
-    while hasattr(ext, '__wrapped__') and not hasattr(ext, '__signature__'):
+    while hasattr(ext, "__wrapped__") and not hasattr(ext, "__signature__"):
         if isinstance(ext, extensions.Extension):
             ext.run(opts)
-        ext = getattr(ext, '__wrapped__')
+        ext = ext.__wrapped__
     if run_main:
         with context:
             return_value = call_function(func, signature(ext), opts)
+        # "return_values" is created dynamically by the context protocol
         context.return_values += (return_value,)
-    if hasattr(opts, '_subcommand'):
+    if hasattr(opts, "_subcommand"):
+        # "_subcommand" is the argparse dest begin itself creates above
         subfunc = collector.get(opts._subcommand)
         with context:
             return_value = call_function(subfunc, signature(subfunc), opts)

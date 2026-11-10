@@ -51,3 +51,12 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# uv
+.venv/
+
+# build/coverage artifacts
+dist/
+.coverage
+.pytest_cache/
+.ruff_cache/

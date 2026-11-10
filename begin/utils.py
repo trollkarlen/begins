@@ -1,6 +1,30 @@
 """Utility functions for begins"""
-from distutils.util import strtobool as _tobool
+
 from argparse import FileType as tofile
+
+_TRUE = {"y", "yes", "t", "true", "on", "1"}
+_FALSE = {"n", "no", "f", "false", "off", "0"}
+
+__all__ = ["tofile", "tolist", "tobool", "strtobool"]
+
+
+def strtobool(value):
+    """Convert a string representation of truth to 1 or 0.
+
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'value' is anything else.
+
+    Replaces distutils.util.strtobool, which was removed together with
+    distutils in Python 3.12.
+    """
+    val = str(value).lower()
+    if val in _TRUE:
+        return 1
+    if val in _FALSE:
+        return 0
+    raise ValueError(f"invalid truth value {value!r}")
+
 
 def tobool(value):
     """Convert a string representation of truth to True or False.
@@ -11,23 +35,24 @@ def tobool(value):
     """
     if isinstance(value, bool):
         return value
-    return bool(_tobool(value))
+    return bool(strtobool(value))
 
-def tolist(value=None, sep=',', empty_strings=False):
-    """Convert a string to a list.
 
-    The input string is split on the separator character. The default separator
-    is ','. An alternative separator may be passed as the 'sep' keyword. If no
-    string value is provided a function is returned that splits a string on the
-    provided separator, or default if none was provided. Any empty strings are
-    removed from the resulting list. This behaviour can be changed by passing
-    True as the 'empty_strings' keyword argument.
+def tolist(value=None, sep=",", empty_strings=False):
+    """Convert a separated string to a list of strings.
+
+    Called with a value, splits the string on 'sep' and returns the
+    stripped items. Empty items are dropped unless 'empty_strings' is
+    true.  Called without a value, returns a converter function with the
+    given options bound, suitable for use with begin.convert().
     """
-    def tolist(value):
-        result = value.split(sep)
+
+    def convert(value_):
+        items = [item.strip() for item in str(value_).split(sep)]
         if not empty_strings:
-            return [r for r in result if len(r) > 0]
-        return result
+            items = [item for item in items if item != ""]
+        return items
+
     if value is None:
-        return tolist
-    return tolist(value)
+        return convert
+    return convert(value)

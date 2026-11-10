@@ -1,12 +1,5 @@
-from __future__ import absolute_import, division, print_function
-import mock
-import sys
+import unittest
 import warnings
-
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
 
 from begin import context
 
@@ -28,21 +21,21 @@ class TestContext(unittest.TestCase):
     def test_deprecation_warning(self):
         with warnings.catch_warnings(record=True) as warned:
             warnings.simplefilter("always")
-            context.return_value
+            _ = context.return_value
         self.assertGreater(len(warned), 0)
 
     def test_mutable(self):
         for name in context._protected:
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
             setattr(context, name, None)
 
     def test_immutable(self):
         with context:
             for name in context._protected:
-                if name.startswith('_'):
+                if name.startswith("_"):
                     continue
                 self.assertRaises(AttributeError, setattr, context, name, None)
 
     def test_protected(self):
-        self.assertRaises(AttributeError, setattr, context, 'alpha', None)
+        self.assertRaises(AttributeError, setattr, context, "alpha", None)

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - name: Install project with dev dependencies
+        run: uv sync
+      - name: Ruff
+        run: uv run ruff check .
+      - name: Black
+        run: uv run black --check .
+      - name: Pylint
+        run: uv run pylint begin
+      - name: Mypy
+        run: uv run mypy
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+    steps:
+      - uses: actions/checkout@v4
+      # Use official python.org interpreters rather than uv's managed
+      # builds: uv's managed 3.15.0 crashes pytest 9.2.0 at startup
+      # (frozendict NameError via the 3.15 lazy-import machinery), while
+      # the official 3.15.2 build works. Revisit if uv's builds stabilize.
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Install project with dev dependencies
+        run: uv sync --python "$(command -v python)"
+      - name: Pytest with coverage gate (>= 80%)
+        run: uv run pytest

@@ -1,1 +1,3 @@
-__version__ = "0.9"
+"Version of the begins package"
+
+__version__ = "1.0.0"
